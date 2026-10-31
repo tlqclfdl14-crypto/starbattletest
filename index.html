@@ -15,91 +15,17 @@ button{background:var(--acc);color:#fff;border:0;font-weight:600}
 .mut{color:var(--mut);font-size:14px}
 #bar{display:flex;justify-content:space-between;width:100%;max-width:440px;font-weight:600;margin-bottom:8px}
 #grid{display:grid;width:min(94vw,440px);aspect-ratio:1;touch-action:manipulation;user-select:none}
-.c{display:flex;align-items:center;justify-content:center;font-size:clamp(18px,6vw,30px);color:#222}
+.c{display:flex;align-items:center;justify-content:center;font-size:clamp(16px,5vw,26px);line-height:1;min-width:0;min-height:0;overflow:hidden;color:#222}
 .c.bad{color:var(--bad)}
 #msg{margin-top:12px;font-size:20px;font-weight:700;text-align:center;min-height:30px}
 .hide{display:none!important}
+button:disabled{opacity:.35}
+.big{font-size:22px;padding:22px 12px}
 </style></head><body>
-<h1>👑 Queens 대결</h1>
 
-<div id="wait" class="card">
-  <div id="who" style="font-weight:600">연결 중...</div>
-  <div class="row"><button id="go" disabled>게임 시작 (친구 접속 후)</button></div>
-  <div class="row"><button id="solo" style="background:var(--mut)">연습하기 (혼자)</button></div>
-  <div class="mut" style="margin-top:10px">누구든 시작을 누르면 두 폰에 같은 퍼즐(8×8~10×10 랜덤)이 떠요.</div>
+<div id="wait" style="width:100%;max-width:440px;margin-top:30vh;display:flex;flex-direction:column;gap:14px">
+  <button id="go" class="big" disabled>멀티 (대기중)</button>
+  <button id="solo" class="big" style="background:var(--mut)">싱글</button>
 </div>
 
 <div id="game" class="hide" style="width:100%;flex-direction:column;align-items:center">
-  <div id="bar"><span id="me"></span><span id="tm">0:00</span><span id="op"></span></div>
-  <div id="grid"></div>
-  <div id="msg"></div>
-  <div class="row" style="width:100%;max-width:440px"><button id="again" class="hide">다시 하기</button><button id="back" style="background:var(--mut)">대기 화면</button></div>
-</div>
-
-<script>
-const $=s=>document.querySelector(s);
-const COL=["#f4a6a0","#f7cf8b","#f3ee9a","#b5e0a1","#9fd8d4","#9ec5f0","#c5b0ec","#efa9d3","#cdb9a0","#c4c8cf"];
-const ROOM="k7m3x9pw42qz";
-let n=8,reg=[],mk=[],t0=0,over=true,tick=null,R=Math.random,code=ROOM,gid="";
-const ME=Math.random().toString(36).slice(2,8);
-let solo=false,lastq=0,topic,es,peer=false,oq=0,won=null,sentHello=false;
-
-function seedOf(s){let h=2166136261;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
-function rng(a){return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function perm(n){const p=[],u=new Set;const f=i=>{if(i==n)return true;
-  const cs=[...Array(n).keys()];for(let k=n-1;k>0;k--){const j=R()*(k+1)|0;[cs[k],cs[j]]=[cs[j],cs[k]]}
-  for(const c of cs){if(u.has(c)||(i&&Math.abs(c-p[i-1])<2))continue;p[i]=c;u.add(c);if(f(i+1))return true;u.delete(c)}return false};
-  return f(0)?p:null}
-function grow(n,p){const r=Array(n*n).fill(-1);p.forEach((c,i)=>r[i*n+c]=i);let left=n*n-n;
-  while(left){const i=R()*n*n|0;if(r[i]<0)continue;const d=[[1,0],[-1,0],[0,1],[0,-1]][R()*4|0],x=i%n+d[0],y=(i/n|0)+d[1];
-    if(x<0||y<0||x>=n||y>=n)continue;const j=y*n+x;if(r[j]<0){r[j]=r[i];left--}}return r}
-function count(r,n){let c=0;const cu=Array(n).fill(0),ru=Array(n).fill(0),p=[];
-  (function f(i){if(c>1)return;if(i==n){c++;return}for(let x=0;x<n;x++){const g=r[i*n+x];
-    if(cu[x]||ru[g]||(i&&Math.abs(x-p[i-1])<2))continue;cu[x]=ru[g]=1;p[i]=x;f(i+1);cu[x]=ru[g]=0}})(0);return c}
-function gen(n,s){R=rng(seedOf(s+"|"+n));for(let k=0;k<500;k++){const p=perm(n);if(!p)continue;const r=grow(n,p);if(count(r,n)==1)return r}return grow(n,perm(n))}
-
-function qs(){const a=[];mk.forEach((v,i)=>v==2&&a.push(i));return a}
-function bad(a){const s=new Set;for(const i of a)for(const j of a){if(i>=j)continue;
-  const x1=i%n,y1=i/n|0,x2=j%n,y2=j/n|0;
-  if(x1==x2||y1==y2||reg[i]==reg[j]||(Math.abs(x1-x2)<2&&Math.abs(y1-y2)<2)){s.add(i);s.add(j)}}return s}
-function draw(){const g=$("#grid");g.style.gridTemplateColumns=`repeat(${n},1fr)`;g.innerHTML="";
-  const a=qs(),b=bad(a);
-  for(let i=0;i<n*n;i++){const x=i%n,y=i/n|0,d=document.createElement("div");d.className="c"+(b.has(i)?" bad":"");
-    d.style.background=COL[reg[i]%10];
-    const side=(nx,ny)=>(nx<0||ny<0||nx>=n||ny>=n||reg[ny*n+nx]!=reg[i])?"2.5px solid var(--ln)":"1px solid rgba(0,0,0,.18)";
-    d.style.borderTop=side(x,y-1);d.style.borderBottom=side(x,y+1);d.style.borderLeft=side(x-1,y);d.style.borderRight=side(x+1,y);
-    d.textContent=mk[i]==2?"♛":mk[i]==1?"×":"";
-    d.onclick=()=>tap(i);g.appendChild(d)}
-  $("#me").textContent="나 ♛ "+a.length+"/"+n;$("#op").textContent="상대 ♛ "+oq+"/"+n}
-function fmt(ms){const s=ms/1000,m=s/60|0;return m+":"+(s%60).toFixed(1).padStart(4,"0")}
-const send=o=>fetch("https://ntfy.sh/"+topic,{method:"POST",body:JSON.stringify({...o,p:ME})}).catch(()=>{$("#who").textContent="연결 오류: 인터넷을 확인하세요"});
-function tap(i){if(over)return;mk[i]=(mk[i]+1)%3;draw();const a=qs();
-  if(a.length!=lastq){lastq=a.length;if(!solo)send({t:"prog",q:lastq,g:gid})}
-  if(a.length==n&&bad(a).size==0){over=true;clearInterval(tick);const ms=Date.now()-t0;if(solo){$("#msg").textContent="🎉 완성! "+fmt(ms);$("#again").classList.remove("hide");return}
-    $("#msg").textContent="완성! "+fmt(ms)+" · 판정 중...";
-    send({t:"done",ms,g:gid});setTimeout(()=>{if(won===null)$("#msg").textContent="완성! "+fmt(ms)+" (서버 응답 없음)"},5000)}}
-function showOnly(id){["wait","game"].forEach(k=>{$("#"+k).classList.toggle("hide",k!=id)});$("#game").style.display=id=="game"?"flex":""}
-function startRound(g,sz,sl){solo=!!sl;gid=g;n=sz;won=null;oq=0;over=true;mk=Array(n*n).fill(0);lastq=0;
-  reg=gen(n,g);showOnly("game");$("#again").classList.add("hide");$("#grid").style.visibility="hidden";draw();
-  $("#tm").textContent="0:00";clearInterval(tick);let c=3;$("#msg").textContent=c;
-  const cd=setInterval(()=>{c--;if(c>0){$("#msg").textContent=c;return}clearInterval(cd);
-    $("#msg").textContent="";$("#grid").style.visibility="";over=false;t0=Date.now();
-    tick=setInterval(()=>{if(!over)$("#tm").textContent=fmt(Date.now()-t0)},100)},1000)}
-function handle(m){const mine=m.p==ME;
-  if(m.t=="hello"&&!mine){peer=true;send({t:"hi"});upd()}
-  else if(m.t=="hi"&&!mine){peer=true;upd()}
-  else if(m.t=="go"){if(m.g!==gid)startRound(m.g,m.n)}
-  else if(m.t=="prog"&&!mine&&m.g===gid){oq=m.q;draw()}
-  else if(m.t=="done"&&won===null&&m.g===gid){won=m.p;over=true;clearInterval(tick);
-    $("#msg").textContent=mine?"🏆 승리! "+fmt(m.ms):"😵 상대가 먼저 완성했어요 ("+fmt(m.ms)+")";$("#again").classList.remove("hide")}}
-function upd(){$("#who").textContent=(peer?"친구 접속됨 ✅":"친구를 기다리는 중...");$("#go").disabled=!peer;$("#go").textContent=peer?"게임 시작":"게임 시작 (친구 접속 후)"}
-function startSolo(){startRound("s"+Math.random().toString(36).slice(2,8),8+(Math.random()*3|0),true)}
-function join(){topic="qbattle-"+ROOM;peer=false;sentHello=false;showOnly("wait");upd();
-  es=new EventSource("https://ntfy.sh/"+topic+"/sse");
-  es.onopen=()=>{if(!sentHello){sentHello=true;send({t:"hello"})}};
-  es.onmessage=e=>{try{const o=JSON.parse(e.data);if(o.event=="message")handle(JSON.parse(o.message))}catch(x){}}}
-function newGame(){send({t:"go",g:Math.random().toString(36).slice(2,10),n:8+(Math.random()*3|0)})}
-$("#back").onclick=()=>{clearInterval(tick);over=true;showOnly("wait")};
-$("#go").onclick=newGame;$("#solo").onclick=startSolo;$("#again").onclick=()=>solo?startSolo():newGame();
-join();
-</script></body></html>
