@@ -1,31 +1,30 @@
-<!doctype html>
-<html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Queens 대결</title>
-<style>
-:root{--bg:#f6f4ef;--fg:#1d1d1f;--card:#fff;--mut:#6b6b70;--acc:#5b4bdb;--bad:#d33;--ln:#1d1d1f;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#17171a;--fg:#f0f0f2;--card:#232328;--mut:#9a9aa2;--acc:#8b7fff;--bad:#ff6b6b;--ln:#0c0c0e;color-scheme:dark}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}
-h1{font-size:20px;margin:4px 0 12px}
-.card{background:var(--card);border-radius:14px;padding:16px;width:100%;max-width:440px}
-input,select,button{font:inherit;border-radius:10px;border:1px solid var(--mut);padding:10px 12px;background:var(--bg);color:var(--fg)}
-button{background:var(--acc);color:#fff;border:0;font-weight:600}
-.row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1;min-width:0}
-.mut{color:var(--mut);font-size:14px}
-#bar{display:flex;justify-content:space-between;width:100%;max-width:440px;font-weight:600;margin-bottom:8px}
-#grid{display:grid;width:min(94vw,440px);aspect-ratio:1;touch-action:manipulation;user-select:none}
-.c{display:flex;align-items:center;justify-content:center;font-size:clamp(16px,5vw,26px);line-height:1;min-width:0;min-height:0;overflow:hidden;color:#222}
-.c.bad{color:var(--bad)}
-#msg{margin-top:12px;font-size:20px;font-weight:700;text-align:center;min-height:30px}
-.hide{display:none!important}
-button:disabled{opacity:.35}
-.big{font-size:22px;padding:22px 12px}
-</style></head><body>
-
-<div id="wait" style="width:100%;max-width:440px;margin-top:30vh;display:flex;flex-direction:column;gap:14px">
-  <button id="go" class="big" disabled>멀티 (대기중)</button>
-  <button id="solo" class="big" style="background:var(--mut)">싱글</button>
-</div>
-
-<div id="game" class="hide" style="width:100%;flex-direction:column;align-items:center">
+function tap(i){if(over)return;mk[i]=(mk[i]+1)%3;draw();const a=qs();
+  if(a.length!=lastq){lastq=a.length;if(!solo)send({t:"prog",q:lastq,g:gid})}
+  if(a.length==n&&bad(a).size==0){over=true;clearInterval(tick);const ms=Date.now()-t0;if(solo){$("#msg").textContent="🎉 완성! "+fmt(ms);$("#again").classList.remove("hide");return}
+    $("#msg").textContent="완성! "+fmt(ms)+" · 판정 중...";
+    send({t:"done",ms,g:gid});setTimeout(()=>{if(won===null)$("#msg").textContent="완성! "+fmt(ms)+" (서버 응답 없음)"},5000)}}
+function showOnly(id){["wait","game"].forEach(k=>{$("#"+k).classList.toggle("hide",k!=id)});$("#game").style.display=id=="game"?"flex":""}
+function startRound(g,sz,sl){solo=!!sl;gid=g;n=sz;won=null;oq=0;over=true;mk=Array(n*n).fill(0);lastq=0;
+  reg=gen(n,g);showOnly("game");$("#again").classList.add("hide");$("#grid").style.visibility="hidden";draw();
+  $("#tm").textContent="0:00";clearInterval(tick);let c=3;$("#msg").textContent=c;
+  const cd=setInterval(()=>{c--;if(c>0){$("#msg").textContent=c;return}clearInterval(cd);
+    $("#msg").textContent="";$("#grid").style.visibility="";over=false;t0=Date.now();
+    tick=setInterval(()=>{if(!over)$("#tm").textContent=fmt(Date.now()-t0)},100)},1000)}
+function handle(m){const mine=m.p==ME;
+  if(m.t=="hello"&&!mine){peer=true;send({t:"hi"});upd()}
+  else if(m.t=="hi"&&!mine){peer=true;upd()}
+  else if(m.t=="go"){if(m.g!==gid)startRound(m.g,m.n)}
+  else if(m.t=="prog"&&!mine&&m.g===gid){oq=m.q;draw()}
+  else if(m.t=="done"&&won===null&&m.g===gid){won=m.p;over=true;clearInterval(tick);
+    $("#msg").textContent=mine?"🏆 승리! "+fmt(m.ms):"😵 상대가 먼저 완성했어요 ("+fmt(m.ms)+")";$("#again").classList.remove("hide")}}
+function upd(){$("#go").disabled=!peer;$("#go").textContent=peer?"멀티":"멀티 (대기중)"}
+function startSolo(){startRound("s"+Math.random().toString(36).slice(2,8),8+(Math.random()*3|0),true)}
+function join(){topic="qbattle-"+ROOM;peer=false;sentHello=false;showOnly("wait");upd();
+  es=new EventSource("https://ntfy.sh/"+topic+"/sse");
+  es.onopen=()=>{if(!sentHello){sentHello=true;send({t:"hello"})}};
+  es.onmessage=e=>{try{const o=JSON.parse(e.data);if(o.event=="message")handle(JSON.parse(o.message))}catch(x){}}}
+function newGame(){send({t:"go",g:Math.random().toString(36).slice(2,10),n:8+(Math.random()*3|0)})}
+$("#back").onclick=()=>{clearInterval(tick);over=true;showOnly("wait")};
+$("#go").onclick=newGame;$("#solo").onclick=startSolo;$("#again").onclick=()=>solo?startSolo():newGame();
+join();
+</script></body></html>
