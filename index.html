@@ -14,7 +14,7 @@ button{background:var(--acc);color:#fff;border:0;font-weight:600}
 .row{display:flex;gap:8px;margin-top:10px}.row>*{flex:1;min-width:0}
 .mut{color:var(--mut);font-size:14px}
 #bar{display:flex;justify-content:space-between;width:100%;max-width:440px;font-weight:600;margin-bottom:8px}
-#grid{display:grid;width:min(94vw,440px);aspect-ratio:1;touch-action:manipulation;user-select:none}
+#grid{display:grid;width:min(94vw,440px);aspect-ratio:1;touch-action:none;user-select:none}
 .c{display:flex;align-items:center;justify-content:center;font-size:clamp(16px,5vw,26px);line-height:1;min-width:0;min-height:0;overflow:hidden;color:#222}
 .c.bad{color:var(--bad)}
 #msg{margin-top:12px;font-size:20px;font-weight:700;text-align:center;min-height:30px}
@@ -32,7 +32,7 @@ button:disabled{opacity:.35}
   <div id="bar"><span id="me"></span><span id="tm">0:00</span><span id="op"></span></div>
   <div id="grid"></div>
   <div id="msg"></div>
-  <div class="row" style="width:100%;max-width:440px"><button id="again" class="hide">다시 하기</button><button id="back" style="background:var(--mut)">대기 화면</button></div>
+  <div class="row" style="width:100%;max-width:440px"><button id="again" class="hide">다시 하기</button><button id="reset" style="background:var(--bad)">초기화</button><button id="back" style="background:var(--mut)">대기 화면</button></div>
 </div>
 
 <script>
@@ -68,7 +68,7 @@ function draw(){const g=$("#grid");g.style.gridTemplateColumns=`repeat(${n},minm
     const side=(nx,ny)=>(nx<0||ny<0||nx>=n||ny>=n||reg[ny*n+nx]!=reg[i])?"2.5px solid var(--ln)":"1px solid rgba(0,0,0,.18)";
     d.style.borderTop=side(x,y-1);d.style.borderBottom=side(x,y+1);d.style.borderLeft=side(x-1,y);d.style.borderRight=side(x+1,y);
     d.textContent=mk[i]==2?"♛":mk[i]==1?"×":"";
-    d.onclick=()=>tap(i);g.appendChild(d)}
+    d.dataset.i=i;g.appendChild(d)}
   $("#me").textContent="나 ♛ "+a.length+"/"+n;$("#op").textContent="상대 ♛ "+oq+"/"+n}
 function fmt(ms){const s=ms/1000,m=s/60|0;return m+":"+(s%60).toFixed(1).padStart(4,"0")}
 const send=o=>fetch("https://ntfy.sh/"+topic,{method:"POST",body:JSON.stringify({...o,p:ME})}).catch(()=>{});
@@ -98,6 +98,15 @@ function join(){topic="qbattle-"+ROOM;peer=false;sentHello=false;showOnly("wait"
   es.onopen=()=>{if(!sentHello){sentHello=true;send({t:"hello"})}};
   es.onmessage=e=>{try{const o=JSON.parse(e.data);if(o.event=="message")handle(JSON.parse(o.message))}catch(x){}}}
 function newGame(){send({t:"go",g:Math.random().toString(36).slice(2,10),n:8+(Math.random()*3|0)})}
+let dr=null;
+function mark(i){if(mk[i]==0){mk[i]=1;$("#grid").children[i].textContent="×"}}
+const cellAt=e=>{const el=document.elementFromPoint(e.clientX,e.clientY);return el&&el.closest?el.closest(".c"):null};
+$("#grid").addEventListener("pointerdown",e=>{const c=e.target.closest(".c");if(!c||over)return;dr={s:+c.dataset.i,moved:false}});
+$("#grid").addEventListener("pointermove",e=>{if(!dr)return;const c=cellAt(e);if(!c)return;const i=+c.dataset.i;
+  if(!dr.moved){if(i===dr.s)return;dr.moved=true;mark(dr.s)}mark(i)});
+const endDrag=()=>{if(dr&&!dr.moved)tap(dr.s);dr=null};
+window.addEventListener("pointerup",endDrag);window.addEventListener("pointercancel",()=>{dr=null});
+$("#reset").onclick=()=>{if(over)return;mk=Array(n*n).fill(0);const had=lastq;lastq=0;draw();if(!solo&&had)send({t:"prog",q:0,g:gid})};
 $("#back").onclick=()=>{clearInterval(tick);over=true;showOnly("wait")};
 $("#go").onclick=newGame;$("#solo").onclick=startSolo;$("#again").onclick=()=>solo?startSolo():newGame();
 join();
